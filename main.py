@@ -90,9 +90,9 @@ async def info(ctx, *args):
         title="Šī ir rulete!",
         description="""
         Tavs uzdevums uzminēt krāsu
-        **Melna ⚫(2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35)**
-        **Sarkana 🔴(1,3,5,7,9,12,14,16,18,21,23,25,27,30,32,34.36)**
-        **Zaļa 🟢 (Nulle)**
+        **Melna⚫**
+        **Sarkana🔴**
+        **Zaļa🟢**
         Ja uzminēsi krāsu, tu uzvarēji!
         """,
         
@@ -137,7 +137,7 @@ async def bet_color(ctx, arg):
         timestamp=datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
-    embedsResult.set_thumbnail(url=f"{link}")
+    embedsResult.set_thumbnail(url=link)
 
     await ctx.send(embed=embedsResult)
 
