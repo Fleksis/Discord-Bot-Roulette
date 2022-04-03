@@ -1,6 +1,7 @@
 from msilib.schema import ODBCDataSource
 import discord
 from discord.ext import commands
+from discord.ext.commands.cooldowns import BucketType
 from random import randint
 import pytz
 from datetime import datetime
@@ -24,14 +25,14 @@ def get_Color(color):
     else:
         return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Socialist_red_flag.svg/1280px-Socialist_red_flag.svg.png"
 
-def increment_wallet(user_ID):
+def increment_wallet(user_ID, user_Name, bet):
     user_profile = get_user_profile(user_ID) #WALLET SISTĒMAS IZVEIDOŠANA(Jāturpina)
-    print(user_profile[0][2])
-    print(f"user {user_ID} have {user_profile[0][2]} on balance")
-    print()
-    update_user_profile(user_ID, 100)
+    print(f"user {user_Name} have {user_profile[0][2]} on balance")
+    bet += user_profile[0][2]
+    print("increment_wallet",bet)
+    update_user_profile(user_ID, bet)
     user_profile = get_user_profile(user_ID)
-    print(f"now user {user_ID} have {user_profile[0][2]} on balance")
+    print(f"now user {user_Name} have {user_profile[0][2]} on balance")
 
 Roulette = [{"number": 0,"color": "🟢", "color": "green"},
 {"number": 1, "color_sym": "🔴", "color": "red"},
@@ -119,13 +120,14 @@ async def help(ctx, *arg):
 async def info(ctx, *args):
     if args:
         return
+    #ctx.author.id = userID
+    #ctx.author = user full name "Name#1234"
+    #ctx.author.name = name = "Name"
 
-    set_user(ctx.author.id, ctx.author.name)
-    print()
-    increment_wallet(ctx.author.id)
-    print()
-    print(ctx.author)
-    print()
+    set_user(ctx.author.id, ctx.author.name) #-=-=-=-=-=-=-=-=-=-
+    increment_wallet(ctx.author.id,ctx.author) #-=-=-=-=-=-=-=-=-=-
+    print(ctx.author) #-=-=-=-=-=-=-=-=-=-
+
     Embeds = discord.Embed(
         title="__--===Rulete!===--__",
         description="",
@@ -150,26 +152,26 @@ async def info(ctx, *args):
     Embeds.set_thumbnail(url="https://images.theconversation.com/files/147757/original/image-20161128-22748-1couruj.jpg?ixlib=rb-1.1.0&rect=0%2C252%2C5616%2C2723&q=45&auto=format&w=1356&h=668&fit=crop")
     await ctx.send(file=file, embed=Embeds)
 
-### @client.command()
-### async def formathelp(ctx):
-###     qwerty=discord.Embed(
-###     title="Text Formatting",
-###         url="https://realdrewdata.medium.com/",
-###         description="Here are some ways to format text",
-###         color=discord.Color.blue())
-###     qwerty.set_author(name="RealDrewData", url="https://twitter.com/RealDrewData", icon_url="https://cdn-images-1.medium.com/fit/c/32/32/1*QVYjh50XJuOLQBeH_RZoGw.jpeg")
-###     #qwerty.set_author(name=ctx.author.display_name, url="https://twitter.com/RealDrewData", icon_url=ctx.author.avatar_url)
-###     qwerty.set_thumbnail(url="https://i.imgur.com/axLm3p6.jpeg")
-###     qwerty.add_field(name="*Italics*", value="Surround your text in asterisks (\*)", inline=True)
-###     qwerty.add_field(name="**Bold**", value="Surround your text in double asterisks (\*\*)", inline=True)
-###     qwerty.add_field(name="__Underline__", value="Surround your text in double underscores (\_\_)", inline=True)
-###     qwerty.add_field(name="~~Strikethrough~~", value="Surround your text in double tildes (\~\~)", inline=True)
-###     qwerty.add_field(name="`Code Chunks`", value="Surround your text in backticks (\`)", inline=True)
-###     qwerty.add_field(name="Blockquotes", value="> Start your text with a greater than symbol (\>)", inline=True)
-###     qwerty.add_field(name="Secrets", value="||Surround your text with double pipes (\|\|)||", inline=True)
-###     qwerty.set_footer(text="Learn more here: realdrewdata.medium.com")
-
+# @client.command()
+# async def formathelp(ctx):
+#     qwerty=discord.Embed(
+#     title="Text Formatting",
+#         url="https://realdrewdata.medium.com/",
+#         description="Here are some ways to format text",
+#         color=discord.Color.blue())
+#     qwerty.set_author(name="RealDrewData", url="https://twitter.com/RealDrewData", icon_url="https://cdn-images-1.medium.com/fit/c/32/32/1*QVYjh50XJuOLQBeH_RZoGw.jpeg")
+#     #qwerty.set_author(name=ctx.author.display_name, url="https://twitter.com/RealDrewData", icon_url=ctx.author.avatar_url)
+#     qwerty.set_thumbnail(url="https://i.imgur.com/axLm3p6.jpeg")
+#     qwerty.add_field(name="*Italics*", value="Surround your text in asterisks (\*)", inline=True)
+#     qwerty.add_field(name="**Bold**", value="Surround your text in double asterisks (\*\*)", inline=True)
+#     qwerty.add_field(name="__Underline__", value="Surround your text in double underscores (\_\_)", inline=True)
+#     qwerty.add_field(name="~~Strikethrough~~", value="Surround your text in double tildes (\~\~)", inline=True)
+#     qwerty.add_field(name="`Code Chunks`", value="Surround your text in backticks (\`)", inline=True)
+#     qwerty.add_field(name="Blockquotes", value="> Start your text with a greater than symbol (\>)", inline=True)
+#     qwerty.add_field(name="Secrets", value="||Surround your text with double pipes (\|\|)||", inline=True)
+#     qwerty.set_footer(text="Learn more here: realdrewdata.medium.com")
 #     await ctx.send(embed=qwerty)
+     
     # Embeds.add_field
     # *Italics*
     # **Bold**
@@ -181,15 +183,52 @@ async def info(ctx, *args):
     # Embeds.set_footer
 
 @client.command()
-async def betcolor(ctx, arg):
+@commands.cooldown(1, 86400, commands.BucketType.user)
+async def daily(ctx):
+    increment_wallet(ctx.author.id,ctx.author.name, 100)
+    await ctx.send("Jūsu maciņš papildināts!")
+
+@client.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.send(f'Šodien jau dabuji savu bonusu, pamēģini pēc {round(error.retry_after / 60, 2)} minūtēm!')
+
+@client.command()
+async def betcolor(ctx, arg, arg2):
     arg = str(arg.lower())
-    if not arg == "red" or arg == "black" or arg == "green":
-        await ctx.send("Ievadīta nezināma krāsa!")
+    arg2 = int(arg2)
+
+    user = get_user_profile(ctx.author.id)
+    print(user[0][2])
+    if (arg2 <= 0 or arg2 > user[0][2]) or (arg != "red" and arg != "black" and arg != "green"):
+        if arg2 <= 0 or user[0][2] < arg2:
+            await ctx.send("Ievadīta nezināma likme!")
+        else:
+            await ctx.send("Ievadīta nezināmk dati!")
         return
     random = rands()
     element = Roulette[random]
 
     link = get_Color(element['color'])
+
+    if element['color'] == arg:
+
+        print("arg2 is ",arg2)
+        if element['color'] == "red" or element['color'] == "black":
+            bet = (0 - arg2) + (arg2 * 2)
+            print("bet is ",bet)
+        elif element['color'] == "green":
+            bet = (0 - arg2) + (arg2 * 2)
+            print("bet is ",bet)
+        increment_wallet(ctx.author.id, ctx.author, bet)
+        result = f"Tu uzminēji krāsu un uzvarēji{bet}"
+    else:
+        print("arg2 is ",arg2)
+        bet = 0 - arg2
+        print("bet is ",bet)
+        increment_wallet(ctx.author.id, ctx.author, bet)
+        result = f"Tu neuzminēji krāsu un zaudēji {bet}!"
+    
 
 
     embedsResult = discord.Embed(
@@ -200,12 +239,13 @@ async def betcolor(ctx, arg):
         **Izkritušais skaitlis atbilst ar {2} krāsu**
 
         **{3}**
-        """.format(arg, random, element['color_sym'], "Tu uzminēji krāsu!" if element['color'] == arg else "Tu neuzminēji krāsu!"),
+        """.format(arg, random, element['color_sym'], result),
         
         timestamp=datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
     embedsResult.set_thumbnail(url=link)
+    embedsResult.set_footer(text=f"Tavā maciņā pašlaik ir {user[0][2] + bet}")
 
     await ctx.send(embed=embedsResult)
 
@@ -243,4 +283,5 @@ async def betonnumber (ctx, arg):
 
 
 
-client.run(os.getenv("TOKEN"))
+client.run("OTUzNjc0NDE1NjI1ODc1NTc2.YjIAgw.UBeHTFH8C9h3Mhyw373q3YIWENI")
+#os.getenv("TOKEN")
