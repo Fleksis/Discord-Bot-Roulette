@@ -282,6 +282,6 @@ async def betonnumber (ctx, arg):
     await ctx.send(embed=embedsResult)
 
 
-
-client.run("OTUzNjc0NDE1NjI1ODc1NTc2.YjIAgw.UBeHTFH8C9h3Mhyw373q3YIWENI")
-#os.getenv("TOKEN")
+#TODO FIX
+client.run(os.getenv("TOKEN")) #TODO FIX
+#TODO FIX
