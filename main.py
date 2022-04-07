@@ -8,19 +8,17 @@ from datetime import datetime
 import os
 from dotenv import load_dotenv
 from function_db import *
+import datetime
 
 load_dotenv()
 
-#Funkcijas labāk glabā atsevišķā failā
-
-# Apvieno, RAMS raud, apvieno vienā rindā
 def rands(num1 = 0, num2 = 36):
     return randint(int(num1),int(num2))
 
 def get_Color(color):
-    if color == "🟢":
+    if color == "green":
         return "https://steamuserimages-a.akamaihd.net/ugc/837016417742838438/5258F84A9E37C7378C10813273F05FB7DC69F50A/?imw=637&imh=358&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=true"
-    elif color == "⚫":
+    elif color == "black":
         return "https://cms.qz.com/wp-content/uploads/2016/03/kapoor.png?quality=75&strip=all&w=1200&h=900&crop=1"
     else:
         return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Socialist_red_flag.svg/1280px-Socialist_red_flag.svg.png"
@@ -34,7 +32,7 @@ def increment_wallet(user_ID, user_Name, bet):
     user_profile = get_user_profile(user_ID)
     print(f"now user {user_Name} have {user_profile[0][2]} on balance")
 
-Roulette = [{"number": 0,"color": "🟢", "color": "green"},
+Roulette = [{"number": 0,"color_sym": "🟢", "color": "green"},
 {"number": 1, "color_sym": "🔴", "color": "red"},
 {"number": 2, "color_sym": "⚫", "color": "black"},
 {"number": 3, "color_sym": "🔴", "color": "red"},
@@ -85,9 +83,9 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author == client.user or not message.content.startswith('!'):
         return
-
+    set_user(message.author.id, message.author.name)
     await client.process_commands(message)
     
 @client.command()
@@ -120,13 +118,6 @@ async def help(ctx, *arg):
 async def info(ctx, *args):
     if args:
         return
-    #ctx.author.id = userID
-    #ctx.author = user full name "Name#1234"
-    #ctx.author.name = name = "Name"
-
-    set_user(ctx.author.id, ctx.author.name) #-=-=-=-=-=-=-=-=-=-
-    increment_wallet(ctx.author.id,ctx.author) #-=-=-=-=-=-=-=-=-=-
-    print(ctx.author) #-=-=-=-=-=-=-=-=-=-
 
     Embeds = discord.Embed(
         title="__--===Rulete!===--__",
@@ -143,7 +134,7 @@ async def info(ctx, *args):
     piemērs: <`/betcolor 25`>
     Attiecīgi ja uzmini krāsu, tu uzvari!
     """, inline=True)
-    Embeds.add_field(name="**Likme uz skaitļiem**", value="""Liekot likmi uz skaitli jāieraksta attiecīgs skaitlis uz kā tiks likta likme
+    Embeds.add_field(name="**Likme uz skaitļiemc**", value="""Liekot likmi uz skaitli jāieraksta attiecīgs skaitlis uz kā tiks likta likme
     piemērs: <`/betonnumber 25`>
     Attiecīgi ja uzmini skaitli, tu uzvari!
     """, inline=True)
@@ -151,6 +142,15 @@ async def info(ctx, *args):
     Embeds.set_image(url="attachment://image.png")
     Embeds.set_thumbnail(url="https://images.theconversation.com/files/147757/original/image-20161128-22748-1couruj.jpg?ixlib=rb-1.1.0&rect=0%2C252%2C5616%2C2723&q=45&auto=format&w=1356&h=668&fit=crop")
     await ctx.send(file=file, embed=Embeds)
+
+@client.command()
+async def balance(ctx, *args):
+    if args:
+        return
+    
+    user_ID = get_user_profile(ctx.author.id)
+    await ctx.send(f"Jūsu maciņā ir {user_ID[0][2]}")
+
 
 # @client.command()
 # async def formathelp(ctx):
@@ -183,15 +183,16 @@ async def info(ctx, *args):
     # Embeds.set_footer
 
 @client.command()
-@commands.cooldown(1, 86400, commands.BucketType.user)
 async def daily(ctx):
-    increment_wallet(ctx.author.id,ctx.author.name, 100)
-    await ctx.send("Jūsu maciņš papildināts!")
-
-@client.event
-async def on_command_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        await ctx.send(f'Šodien jau dabuji savu bonusu, pamēģini pēc {round(error.retry_after / 60, 2)} minūtēm!')
+    user = get_user_profile(ctx.author.id)
+    if user[0][3] < datetime.datetime.now().date():
+        print("TRUE")
+        set_daily_date(ctx.author.id)
+        increment_wallet(ctx.author.id,ctx.author.name, 100)
+        await ctx.send("Jūsu maciņš papildināts!")
+    else:
+        print("false")
+        await ctx.send("Gaidiet nākošo dienu, lai papildinātu maciņu!")
 
 @client.command()
 async def betcolor(ctx, arg, arg2):
@@ -204,7 +205,7 @@ async def betcolor(ctx, arg, arg2):
         if arg2 <= 0 or user[0][2] < arg2:
             await ctx.send("Ievadīta nezināma likme!")
         else:
-            await ctx.send("Ievadīta nezināmk dati!")
+            await ctx.send("Ievadīta nezināma krāsa!")
         return
     random = rands()
     element = Roulette[random]
@@ -221,7 +222,7 @@ async def betcolor(ctx, arg, arg2):
             bet = (0 - arg2) + (arg2 * 2)
             print("bet is ",bet)
         increment_wallet(ctx.author.id, ctx.author, bet)
-        result = f"Tu uzminēji krāsu un uzvarēji{bet}"
+        result = f"Tu uzminēji krāsu un uzvarēji {bet}"
     else:
         print("arg2 is ",arg2)
         bet = 0 - arg2
@@ -229,23 +230,28 @@ async def betcolor(ctx, arg, arg2):
         increment_wallet(ctx.author.id, ctx.author, bet)
         result = f"Tu neuzminēji krāsu un zaudēji {bet}!"
     
-
+    if arg == "red":
+        inputColor = "🔴"
+    elif arg == "black":
+        inputColor = "⚫"
+    else:
+        inputColor == "🟢"
 
     embedsResult = discord.Embed(
         title="-==Spēles rezūltāti==-",
         description="""
-        **Jūsu ievadītais skaitlis ir** - **{0}**
+        **Jūsu ievadītā krāsa ir** - **{0}**
         **Izkritušais skaitlis ir** - **{1}**
         **Izkritušais skaitlis atbilst ar {2} krāsu**
 
         **{3}**
-        """.format(arg, random, element['color_sym'], result),
+        """.format(inputColor, random, element['color_sym'], result),
         
-        timestamp=datetime.utcnow().replace(tzinfo=pytz.utc),
+        timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
     embedsResult.set_thumbnail(url=link)
-    embedsResult.set_footer(text=f"Tavā maciņā pašlaik ir {user[0][2] + bet}")
+    embedsResult.set_footer(text=f"{ctx.author} • Tavā maciņā pašlaik ir {user[0][2] + bet}")
 
     await ctx.send(embed=embedsResult)
 
@@ -285,3 +291,7 @@ async def betonnumber (ctx, arg):
 #TODO FIX
 client.run(os.getenv("TOKEN")) #TODO FIX
 #TODO FIX
+
+#TODO Uzlikt uz betcolor username kurš izpildija darbību.
+#TODO Ar rekursijas palidzību čeko daily cooldown laiku katru stundu no db, tad kad iegūst skaitli sūta
+#TODO nomainīt krāsu betiem uz to kāda izkrīt, nevis uz to ko izvēlējās lietotājs

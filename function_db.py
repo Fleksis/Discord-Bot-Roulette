@@ -1,4 +1,5 @@
 import db
+import datetime
 
 database = db.connect()
 
@@ -40,10 +41,18 @@ def is_user_exist(user_ID):
     else:
         return True
 
+def set_daily_date(user_ID):
+    now = datetime.datetime.now().date()
+    
+    sql = "UPDATE `user` SET `daily_bonus`='{0}' WHERE user_ID = {1}".format(now, user_ID)
+    Mycursor.execute(sql)
+    database.commit()
+
 def get_user_profile(user_ID):
     sql = "SELECT * FROM user WHERE user_ID = '{0}'".format(user_ID)
     Mycursor.execute(sql)
     user_profile = Mycursor.fetchall()
+    print(user_profile)
     
     return user_profile
 
