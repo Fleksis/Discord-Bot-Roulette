@@ -8,6 +8,7 @@ import os
 from dotenv import load_dotenv
 from function_db import *
 import datetime
+from datetime import timedelta
 from time import sleep
 import threading
 
@@ -26,12 +27,13 @@ def get_Color(color):
         return "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Socialist_red_flag.svg/1280px-Socialist_red_flag.svg.png"
 
 
-def increment_wallet(user_ID, user_Name, bet):
-    user_profile = get_user_profile(user_ID)  # WALLET SISTEMAS IZVEIDOSANA(Jaturpina)
+def increment_wallet(user_ID, user_Name, bet, winning = 0, losing = 0):
+    user_profile = get_user_profile(user_ID)
     bet += user_profile[0][2]
-    update_user_profile(user_ID, bet)
-    print(
-        f"User {user_Name} changed wallet balance by {bet - user_profile[0][2]} and now have {user_profile[0][2] + (bet - user_profile[0][2])}")
+    winning += user_profile[0][3]
+    losing += user_profile[0][4]
+    update_user_profile(user_ID, bet, winning, losing)
+    print(f"User {user_Name} changed wallet balance by {bet - user_profile[0][2]} and now have {user_profile[0][2] + (bet - user_profile[0][2])}")
     print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{user_Name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
 
 
@@ -145,21 +147,10 @@ async def info(ctx, *args):
         url="https://images.theconversation.com/files/147757/original/image-20161128-22748-1couruj.jpg?ixlib=rb-1.1.0&rect=0%2C252%2C5616%2C2723&q=45&auto=format&w=1356&h=668&fit=crop")
     await ctx.send(file=file, embed=Embeds)
 
-
-@client.command()
-async def rand(ctx, arg1, arg2):
-    random = rands(arg1, arg2)
-    sends = await ctx.send(f"{ctx.author.name} nejaušais skaitlis: {random}")
-    for times in range(10):
-        random = rands(arg1, arg2)
-        await sends.edit(content=f"{ctx.author.name} nejaušais skaitlis: {random}")
-        sleep(0.01)
-
-
 @client.command()
 async def daily(ctx):
     user = get_user_profile(ctx.author.id)
-    if user[0][3] < datetime.datetime.now().date():
+    if user[0][5] < datetime.datetime.now().date():
         set_daily_date(ctx.author.id)
         increment_wallet(ctx.author.id, ctx.author.name, 100)
 
@@ -167,6 +158,25 @@ async def daily(ctx):
     else:
         await ctx.send("Gaidiet nākošo dienu, lai papildinātu maciņu!")
 
+@client.command()
+async def profile(ctx):
+    user = get_user_profile(ctx.author.id)
+    embedsProfile = discord.Embed(
+        title=f"{ctx.author.name}",
+        description="""
+            **Balance**: {0}
+            **Bonuss paņemts**: {1}
+            **Uzvarēts**: {2}
+            **Zaudēts**: {3}
+            **Profit**: {4}
+            """.format(user[0][2],user[0][5],user[0][3],user[0][4], user[0][3] + user[0][4]),
+
+        timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
+        colour=ctx.author.colour
+    )
+    embedsProfile.set_thumbnail(url=ctx.author.avatar_url)
+    embedsProfile.set_footer(text=f"{ctx.author}")
+    await ctx.send(embed=embedsProfile)
 
 @client.command()
 async def balance(ctx, *args):
@@ -196,16 +206,19 @@ async def betcolor(ctx, inputColor, inputBet):
 
     link = get_Color(element['color'])
 
-    if element['color'] == inputColor or element['color'] == inputColor:
-        bet = (0 - inputBet) + (inputBet * 2)
-        result = f"Tu uzminēji krāsu un uzvarēji {bet}"
-    elif element['color'] == inputColor:
-        bet = (0 - inputBet) + (inputBet * 4)
-        result = f"Tu uzminēji krāsu un uzvarēji {bet}"
+    winning = 0
+    losing = 0
+
+    if element['color'] == inputColor:
+        multiplier = 10 if inputColor == "green" else 2
+        bet = (0 - inputBet) + (inputBet *  multiplier)
+        result = f"Tu uzminēji krāsu un uzvarēji {bet + inputBet}"
+        winning = bet
     else:
         bet = 0 - inputBet
+        losing = bet
         result = f"Tu neuzminēji krāsu un zaudēji {bet}!"
-    increment_wallet(ctx.author.id, ctx.author, bet)
+    increment_wallet(ctx.author.id, ctx.author, bet, winning, losing)
 
     if inputColor == "red":
         symbolColor = "🔴"
@@ -265,6 +278,15 @@ async def betonnumber(ctx, arg): # TODO jāsāk taisīt
     await ctx.send(embed=embedsResult)
 
 @client.command()
+async def rand(ctx, arg1, arg2):
+    random = rands(arg1, arg2)
+    sends = await ctx.send(f"{ctx.author.name} nejaušais skaitlis: {random}")
+    for times in range(10):
+        random = rands(arg1, arg2)
+        await sends.edit(content=f"{ctx.author.name} nejaušais skaitlis: {random}")
+        sleep(0.01)
+
+@client.command()
 async def timer(ctx, *args):
     if args:
         return
@@ -283,4 +305,6 @@ client.run(os.getenv("TOKEN"))
 2. !top (Serveru vai visu serveru tops ar to cik daudz naudas ir useriem vai serveru kopumam)
 3. Betot procentoali no balances vērtības
 4. Izveidot timeri.
+5. Izveidot proiflu(prioritāte) +/-
+6. kur salīdzina krāsas izmantot short if
 """

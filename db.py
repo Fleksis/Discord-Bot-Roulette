@@ -11,4 +11,3 @@ def connect():
         return mydb
     except:
         return False
-    

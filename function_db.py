@@ -1,5 +1,6 @@
 import db
 import datetime
+from datetime import timedelta
 
 database = db.connect()
 
@@ -23,7 +24,7 @@ def get_users():
 #Select; update; delete; insert;
 def set_user(user_ID, nickname):
     if not is_user_exist(user_ID):
-        sql = "INSERT INTO user (user_ID, Nickname) VALUES ({0}, '{1}')".format(user_ID, nickname.name)
+        sql = "INSERT INTO user (user_ID, Nickname, daily_bonus) VALUES ({0}, '{1}', '{2}')".format(user_ID, nickname.name, datetime.datetime.now().date() - timedelta(days=1))
         # values = (user_ID, Nickname)
         Mycursor.execute(sql)
 
@@ -57,7 +58,7 @@ def get_user_profile(user_ID):
     
     return user_profile
 
-def update_user_profile(user_ID, value):
-    sql = "UPDATE `user` SET `Wallet`='{0}' WHERE user_ID = {1}".format(value,user_ID)
+def update_user_profile(user_ID, value, winning, losing):
+    sql = "UPDATE `user` SET `Wallet`='{0}', `winning` = '{1}', `losing` = '{2}' WHERE user_ID = {3}".format(value, winning, losing, user_ID)
     Mycursor.execute(sql)
     database.commit()
