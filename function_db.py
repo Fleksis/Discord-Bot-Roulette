@@ -5,7 +5,7 @@ from datetime import timedelta
 database = db.connect()
 
 try:
-    Mycursor = database.cursor()
+    Mycursor = database.cursor(dictionary=True)
 except:
     print("Cursor failed to select")
 
@@ -19,7 +19,7 @@ def get_users():
     Mycursor.execute("SELECT * FROM user")
     users = Mycursor.fetchall()
     for user in range(len(users)):
-        print(users[user][1])
+        print(users[user]["nickname"])
 
 #Select; update; delete; insert;
 def set_user(user_ID, nickname):
@@ -31,8 +31,6 @@ def set_user(user_ID, nickname):
         database.commit()
         print(f"User {nickname.name} is registered!")
         print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{nickname.name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
-    #else:
-        #print("User is already registered!")
 
 def is_user_exist(user_ID):
     sql = "SELECT * FROM user WHERE user_ID = '{0}'".format(user_ID)
@@ -54,9 +52,15 @@ def set_daily_date(user_ID):
 def get_user_profile(user_ID):
     sql = "SELECT * FROM user WHERE user_ID = '{0}'".format(user_ID)
     Mycursor.execute(sql)
-    user_profile = Mycursor.fetchall()
+    user_profile = Mycursor.fetchone()
     
     return user_profile
+
+def get_users_profile():
+    Mycursor.execute("SELECT * FROM user")
+    users = Mycursor.fetchall()
+    return users
+
 
 def update_user_profile(user_ID, value, winning, losing):
     sql = "UPDATE `user` SET `Wallet`='{0}', `winning` = '{1}', `losing` = '{2}' WHERE user_ID = {3}".format(value, winning, losing, user_ID)
