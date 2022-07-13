@@ -30,6 +30,7 @@ async def on_message(message):
     if message.author == client.user or not message.content.startswith('!'):
         return
     set_user(message.author.id, message.author)
+    set_guild(message.guild)
     await client.process_commands(message)
 
 Roulette = [{"number": 0, "color_sym": "🟢", "color": "green"},
@@ -70,14 +71,28 @@ Roulette = [{"number": 0, "color_sym": "🟢", "color": "green"},
             {"number": 35, "color_sym": "⚫", "color": "black"},
             {"number": 36, "color_sym": "🔴", "color": "red"}]
 
-def increment_wallet(user_ID, user_Name, bet, winning = 0, losing = 0):
-    user_profile = get_user_profile(user_ID)
+def increment_wallet(user, bet):
+    user_profile = get_user_profile(user.id)
     bet += user_profile['wallet']
-    winning += user_profile['winning']
-    losing += user_profile['loss']
-    update_user_profile(user_ID, bet, winning, losing)
-    print(f"User {user_Name} changed wallet balance by {bet - user_profile['wallet']} and now have {user_profile['wallet'] + (bet - user_profile['wallet'])}")
-    print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{user_Name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+    update_user_profile(user, bet)
+    print(f"User {user.name} changed wallet balance by {bet - user_profile['wallet']} and now have {user_profile['wallet'] + (bet - user_profile['wallet'])}")
+    print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{user.name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+
+def bet_stats(user, winning = 0, loss = 0):
+    user_profile = get_user_profile(user.author.id)
+    user_winning = winning + user_profile['winning']
+    user_loss = loss + user_profile['loss']
+
+    guild_profile = get_guild(user.guild.id)
+    guild_winning = winning + guild_profile['total_winning']
+    guild_loss = loss + guild_profile['total_loss']
+
+    update_stats(user, user_winning, user_loss, guild_winning, guild_loss)
+
+    print(f"User winning is {user_winning} and loss is {user_loss}")
+    print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{user.author.name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
+    print(f"Guild winning is {guild_winning} and loss is {guild_loss}")
+    print(f"-=-=-=-=-=-=-=-=-=-=-=-=-=-=-{user.guild.name}-=-=-=-=-=-=-=-=-=-=-=-=-=-=-")
 
 def get_Color(color):
     if color == "green":
@@ -96,7 +111,7 @@ async def help(ctx, *arg):
         return
     Help = discord.Embed(
         title="__-==Komandu saraksts==-__",
-        description=None,
+        description="",
         timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
@@ -151,6 +166,14 @@ async def daily(ctx):
         await ctx.send("Gaidiet nākošo dienu, lai papildinātu maciņu!")
 
 @client.command()
+async def balance(ctx, *args):
+    if args:
+        return
+
+    user_ID = get_user_profile(ctx.author.id)
+    await ctx.send(f"Jūsu maciņā ir {user_ID['wallet']}")
+
+@client.command()
 async def profile(ctx):
     user = get_user_profile(ctx.author.id)
     embedsProfile = discord.Embed(
@@ -161,7 +184,7 @@ async def profile(ctx):
             **Uzvarēts**: {2}
             **Zaudēts**: {3}
             **Profit**: {4}
-            """.format(user['wallet'], user['daily_bonus'], user['winning'], user['losing'], user['winning'] + user['losing']),
+            """.format(user['wallet'], user['daily_bonus'], user['winning'], user['loss'], user['winning'] + user['loss']),
 
         timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=ctx.author.colour
@@ -171,16 +194,28 @@ async def profile(ctx):
     await ctx.send(embed=embedsProfile)
 
 @client.command()
-async def balance(ctx, *args):
-    if args:
-        return
+async def top(ctx, *args):
+    users = get_users_profile()
+    users.sort(reverse=True, key=sortByProfit)
+    userTop = ""
+    i = 1
+    for x in range(len(users)):
+        if users[x]['guild_id'] == ctx.guild.id:
+            userTop += str(i) + ". " + "**" + str(users[x]['nickname']) + " - " + str(users[x]['winning']) + "**\n"
+            i += 1
 
-    user_ID = get_user_profile(ctx.author.id)
-    await ctx.send(f"Jūsu maciņā ir {user_ID['wallet']}")
-
+    embedsTemplate = discord.Embed(
+        title="-=={0} statistika==-".format(ctx.guild.name),
+        description="Servera lielākie uzvarētāji\n{0}".format(userTop),
+        timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
+        colour=discord.Colour.purple()
+    )
+    top = discord.File("top_guild_logo.png", filename="top_guild_logo.png")
+    embedsTemplate.set_thumbnail(url="attachment://top_guild_logo.png")
+    await ctx.send(file=top, embed=embedsTemplate)
 
 @client.command()
-async def betcolor(ctx, inputColor, inputBet):
+async def bet_color(ctx, inputColor, inputBet):
     inputColor = str(inputColor.lower())
     inputBet = int(inputBet)
 
@@ -210,7 +245,8 @@ async def betcolor(ctx, inputColor, inputBet):
         bet = 0 - inputBet
         losing = bet
         result = f"Tu neuzminēji krāsu un zaudēji {bet}!"
-    increment_wallet(ctx.author.id, ctx.author, bet, winning, losing)
+    increment_wallet(ctx.author, bet)
+    bet_stats(ctx, winning, losing)
 
     if inputColor == "red":
         symbolColor = "🔴"
@@ -219,7 +255,7 @@ async def betcolor(ctx, inputColor, inputBet):
     else:
         symbolColor = "🟢"
 
-    embedsResult = discord.Embed(
+    embeds_result = discord.Embed(
         title="-==Spēles rezūltāti==-",
         description="""
         **Jūsu ievadītā krāsa ir** - **{0}**
@@ -232,14 +268,14 @@ async def betcolor(ctx, inputColor, inputBet):
         timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
-    embedsResult.set_thumbnail(url=link)
-    embedsResult.set_footer(text=f"{ctx.author} • Tavā maciņā pašlaik ir {user['wallet'] + bet}")
+    embeds_result.set_thumbnail(url=link)
+    embeds_result.set_footer(text=f"{ctx.author} • Tavā maciņā pašlaik ir {user['wallet'] + bet}")
 
-    await ctx.send(embed=embedsResult)
+    await ctx.send(embed=embeds_result)
 
 
 @client.command()
-async def betonnumber(ctx, betedNumber):  # TODO jāsāk taisīt
+async def bet_number(ctx, betedNumber):  # TODO jāsāk taisīt
     betedNumber = int(betedNumber)
     random = rands()
     element = Roulette[random]
@@ -264,7 +300,7 @@ async def betonnumber(ctx, betedNumber):  # TODO jāsāk taisīt
     else:
         result = "Tu neuzminēji skaitli!"
 
-    embedsResult = discord.Embed(
+    embeds_result = discord.Embed(
         title="-==Spēles rezūltāti==-",
         description="""
         **Jūsu ievadītais skaitlis ir** - **{0}**
@@ -277,8 +313,8 @@ async def betonnumber(ctx, betedNumber):  # TODO jāsāk taisīt
         timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
         colour=discord.Colour.purple()
     )
-    embedsResult.set_thumbnail(url=link)
-    embedsResult.set_footer(text=f"{ctx.author} • Tavā maciņā pašlaik ir {user['wallet'] + bet}")
+    embeds_result.set_thumbnail(url=link)
+    embeds_result.set_footer(text=f"{ctx.author} • Tavā maciņā pašlaik ir {user['wallet'] + bet}")
 
     await ctx.send(embed=embedsResult)
 
@@ -305,38 +341,17 @@ async def timer(ctx, *args):
         await asyncio.sleep(30)
     await ctx.send("target is achieved")
 
-@client.command()
-async def guildTest(ctx, *args):
-    print(ctx.guild.name)
-
-    users = get_users_profile()
-    strings = ""
-    print(len(users))
-    for x in range(len(users)):
-        strings += str(x+1) + ". " + "**" + str(users[x]['nickname']) + "**\n"
-
-    embedsTemplate = discord.Embed(
-        title="-==Servera statistika==-",
-        description="""
-            {0}
-            """.format(strings),
-
-        timestamp=datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
-        colour=discord.Colour.purple()
-    )
-    top = discord.File("top_guild_logo.png", filename="top_guild_logo.png")
-    embedsTemplate.set_thumbnail(url="attachment://top_guild_logo.png")
-    embedsTemplate.set_footer(text=f"{ctx.author}")
-    await ctx.send(file=top, embed=embedsTemplate)
+def sortByProfit(users):
+  return users['winning']
 
 client.run(os.getenv("TOKEN"))
 
 # TODO idejas:
 """
-1. !profile, izvadīs smuku embedu par useru(Nicku, bildi, balance, un visādus sīkumus ko var realizēt)(Aizstajot !balance)
-2. !top (Serveru vai visu serveru tops ar to cik daudz naudas ir useriem vai serveru kopumam)
-3. Betot procentoali no balances vērtības
-4. Izveidot timeri.
-5. Izveidot proiflu(prioritāte) (Done+/-)
-6. kur salīdzina krāsas izmantot short if (Done)
+1. !top servera tops(Done+/-)
+2. Visu lietotāju tops un visu serveru tops
+3. Betot procentuāli no balances vērtības
+4. betot uz pāra vai nepāra skaitļiem un savādākā veidā ko piedāvā rulete
+5. Izveidot timeri.(Done+/- pievienot kad lietotājs pats pievieno laiku)
+6.Optimizēt kodu uz PIP noteikumiem
 """
